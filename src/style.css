@@ -1,7 +1,7 @@
 :root {
   --cream: #fbf9f5;
   --ink: #001e14;
-  --clay: #0d3d14;
+  --clay: #2e4d34;   /* main green for text & buttons (was #0d3d14) */
   --sage: #38551c;
   --line: #e3dbd0;
   --error: #b3564a;

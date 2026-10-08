@@ -2,6 +2,7 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import gsap from 'gsap'
 import RsvpForm from './components/RsvpForm.vue'
+import InviteDetails from './components/InviteDetails.vue'
 
 // ---- Tweak these ----
 const FRAME_COUNT = 10
@@ -9,7 +10,7 @@ const FPS = 4           // drawing speed (8–12 feels hand-drawn)
 const LOOPS = 1              // times the drawing plays (it always ends on frame 10)
 const HOLD = 1.5             // seconds the names sit behind frame 10 before going green
 const NAMES_FONT = 'Brittany' // must match the font-family in your @font-face
-const DARK_BG = '#0d3d14'
+const DARK_BG = '#3f6146'     // softer forest green (was #0d3d14)
 const LIGHT_TEXT = '#fbf9f5'
 // ---------------------
 
@@ -37,8 +38,12 @@ function toggleInvite(show) {
   gsap.fromTo(center.value, { y: before - after }, { y: 0, duration: 0.9, ease: 'power3.inOut' })
 }
 
+let tappedEarly = false
 function openInvite() {
-  if (!waiting.value) return
+  if (!waiting.value) {          // tapped while the photo was still fading in
+    tappedEarly = true
+    return
+  }
   waiting.value = false
   tl.play()
 }
@@ -119,7 +124,10 @@ const headerFont = Math.max(72, Math.min(vw * 0.14, 90))
   tl.fromTo(invite.value.children,
     { autoAlpha: 0, y: 14 },
     { autoAlpha: 1, y: 0, duration: 0.7, stagger: 0.2, ease: 'power2.out' }, 'invite+=0.5')
-  tl.addPause('+=0', () => { waiting.value = true })
+  tl.addPause('+=0', () => {
+    if (tappedEarly) tl.play()   // don't make them tap twice
+    else waiting.value = true
+  })
 
   // 2c. After the tap: the invitation fades out, names go back to the middle
   tl.to(invite.value, { autoAlpha: 0, duration: 0.5, ease: 'power1.in' })
@@ -181,11 +189,12 @@ onBeforeUnmount(() => {
         <span class="open-hint"><span class="pulse">Apasă pentru a deschide</span></span>
       </button>
     </div>
-    <p ref="sub" class="sub">CONFIRMARE DE PREZENȚĂ</p>
+    <p ref="sub" class="sub">15 · 05 · 2027</p>
   </header>
 
   <main class="letter-wrap">
     <div ref="letter" class="letter">
+      <InviteDetails />
       <RsvpForm />
     </div>
   </main>
