@@ -9,7 +9,7 @@ const FRAME_COUNT = 10
 const FPS = 4           // drawing speed (8–12 feels hand-drawn)
 const LOOPS = 1              // times the drawing plays (it always ends on frame 10)
 // After frame 10 the riders keep going: up past "Vlad & Iulia" and further into the distance
-const RIDE_SECONDS = 2.5     // how long they keep riding away
+const RIDE_SECONDS = 3       // how long they keep riding away
 const RIDE_UP = 1.2          // how far up they go (in name-heights; bigger = higher)
 const NAMES_LEAD = 1         // "Vlad & Iulia" starts appearing this many seconds before the riders stop (0 = when they stop)
 const RIDE_SCALE = 0.55      // how small they get at the end (smaller = further away)
@@ -22,6 +22,11 @@ const LIGHT_TEXT = '#fbf9f5'
 // Files live in public/loading/frame-1.png … frame-10.png
 const frames = Array.from({ length: FRAME_COUNT }, (_, i) =>
   `${import.meta.env.BASE_URL}loading/frame-${i + 1}.png`
+)
+// While riding away the last 4 drawings keep cycling (hair swings left/right).
+// ride-7/8/9 are frames 7–9 resized to match frame 10, so the riders don't jump in size.
+const RIDE_FRAMES = ['ride-7', 'ride-8', 'ride-9', 'frame-10'].map(n =>
+  `${import.meta.env.BASE_URL}loading/${n}.png`
 )
 const currentFrame = ref(frames[0])
 const envelopeGone = ref(false)
@@ -65,7 +70,7 @@ const envFront = ref(null)
 let tl = null
 
 function preload() {
-  return Promise.all([...frames, photoSrc].map(src => new Promise(res => {
+  return Promise.all([...frames, ...RIDE_FRAMES, photoSrc].map(src => new Promise(res => {
     const im = new Image()
     im.onload = im.onerror = res
     im.src = src
@@ -124,6 +129,19 @@ const headerFont = Math.max(72, Math.min(vw * 0.14, 90))
     scale: RIDE_SCALE,
     duration: RIDE_SECONDS,
     ease: `steps(${Math.round(RIDE_SECONDS * FPS)})`
+  }, 'ride')
+  // ...and the drawings keep playing on the same beat, ending on frame 10
+  const rideSteps = Math.round(RIDE_SECONDS * FPS)
+  const ride = { k: 0 }
+  tl.to(ride, {
+    k: rideSteps,
+    duration: RIDE_SECONDS,
+    ease: `steps(${rideSteps})`,
+    onUpdate: () => {
+      const i = (Math.round(ride.k) + RIDE_FRAMES.length - 1) % RIDE_FRAMES.length   // starts on frame 10
+      currentFrame.value = RIDE_FRAMES[i]
+    },
+    onComplete: () => { currentFrame.value = frames[FRAME_COUNT - 1] }   // always stop on frame 10
   }, 'ride')
 
   // 2. Just before the riders stop, the names appear letter by letter
