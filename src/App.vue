@@ -6,8 +6,12 @@ import InviteDetails from './components/InviteDetails.vue'
 
 // ---- Tweak these ----
 const FRAME_COUNT = 10
-const DRAW_SECONDS = 6       // how long the horse & bicycle drawing lasts (was 2.5)
-const CROSSFADE = 0.45       // each frame melts into the next (0 = hard cuts)
+const FPS = 4           // drawing speed (8–12 feels hand-drawn)
+const LOOPS = 1              // times the drawing plays (it always ends on frame 10)
+// After frame 10 the riders keep going: up past "Vlad & Iulia" and further into the distance
+const RIDE_SECONDS = 2.5     // how long they keep riding away
+const RIDE_UP = 1.2          // how far up they go (in name-heights; bigger = higher)
+const RIDE_SCALE = 0.45      // how small they get at the end (smaller = further away)
 const HOLD = 1.5             // seconds the names sit behind frame 10 before going green
 const NAMES_FONT = 'Brittany' // must match the font-family in your @font-face
 const DARK_BG = '#3f6146'     // softer forest green (was #0d3d14)
@@ -18,6 +22,7 @@ const LIGHT_TEXT = '#fbf9f5'
 const frames = Array.from({ length: FRAME_COUNT }, (_, i) =>
   `${import.meta.env.BASE_URL}loading/frame-${i + 1}.png`
 )
+const currentFrame = ref(frames[0])
 const envelopeGone = ref(false)
 
 // Invitation screen (waits for a tap before the green + envelope)
@@ -93,22 +98,33 @@ const headerFont = Math.max(72, Math.min(vw * 0.14, 90))
   gsap.set(envelope, { yPercent: 140 })   // parked below the screen, still hidden
   gsap.set(letter.value, { autoAlpha: 0 })
 
+  const state = { f: 0 }
   tl = gsap.timeline()
 
-  // 1. The drawing plays slowly, each frame melting into the next, and stops on frame 10
-  const fr = img.value.querySelectorAll('.frame')   // in order: frame-1 … frame-10
-  const step = DRAW_SECONDS / FRAME_COUNT
-  gsap.set(fr, { autoAlpha: 0 })
-  gsap.set(fr[0], { autoAlpha: 1 })
-  for (let i = 1; i < FRAME_COUNT; i++) {
-    const at = i * step - CROSSFADE / 2
-    tl.to(fr[i], { autoAlpha: 1, duration: CROSSFADE, ease: 'none' }, at)
-    tl.to(fr[i - 1], { autoAlpha: 0, duration: CROSSFADE, ease: 'none' }, at)
-  }
-  tl.to({}, { duration: step / 2 })   // let the last frame settle
+  // 1. The drawing plays at full size and stops on frame 10
+  tl.to(state, {
+    f: FRAME_COUNT,
+    duration: FRAME_COUNT / FPS,
+    ease: `steps(${FRAME_COUNT})`,
+    repeat: LOOPS - 1,
+    onUpdate: () => {
+      currentFrame.value = frames[Math.min(Math.floor(state.f), FRAME_COUNT - 1)]
+    }
+  })
 
-  // 2. Behind frame 10, the names appear letter by letter
-  tl.to(chars, { opacity: 1, y: 0, duration: 0.6, stagger: 0.08, ease: 'power2.out' }, '+=0.2')
+  // 1b. They keep riding away: up past the names and smaller, in the same
+  //     hand-drawn rhythm as the frames (stepped, not gliding)
+  const fontPx = parseFloat(getComputedStyle(center.value).fontSize)
+  gsap.set(img.value, { transformOrigin: '51% 58%' })   // the riders' spot in frame 10
+  tl.to(img.value, {
+    y: -RIDE_UP * fontPx,
+    scale: RIDE_SCALE,
+    duration: RIDE_SECONDS,
+    ease: `steps(${Math.round(RIDE_SECONDS * FPS)})`
+  }, 'ride')
+
+  // 2. While they ride away, the names appear letter by letter
+  tl.to(chars, { opacity: 1, y: 0, duration: 0.6, stagger: 0.08, ease: 'power2.out' }, 'ride+=0.5')
   tl.to(amp.value, { opacity: 1, duration: 0.6 }, '-=0.6')
   tl.to({}, { duration: HOLD })
 
@@ -177,9 +193,7 @@ onBeforeUnmount(() => {
         <span ref="amp" class="amp">&amp;</span>
         <span class="word iulia"><span v-for="(c, i) in 'Iulia'" :key="'i' + i" class="char">{{ c }}</span></span>
       </h1>
-      <div ref="img" class="drawing" aria-hidden="true">
-        <img v-for="src in frames" :key="src" class="frame" :src="src" alt="">
-      </div>
+      <img ref="img" class="drawing" :src="currentFrame" alt="">
     </div>
 
     <!-- Invitation: text + photo, waits for a tap -->
@@ -266,20 +280,10 @@ onBeforeUnmount(() => {
   top: 50%;
   translate: -50% -50%;
   width: 4.6em;             /* always proportional to the names */
+  height: auto;
   max-width: 90vw;
-  aspect-ratio: 2420 / 1668;
   pointer-events: none;
 }
-
-.frame {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-}
-
-.frame:first-child { opacity: 1; }
 
 .sub {
   margin: 0.4em 0 0;
