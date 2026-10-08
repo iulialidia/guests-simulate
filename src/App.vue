@@ -20,6 +20,19 @@ const frames = Array.from({ length: FRAME_COUNT }, (_, i) =>
 const currentFrame = ref(frames[0])
 const envelopeGone = ref(false)
 
+// Invitation screen (waits for a tap before the green + envelope)
+const INVITE_TEXT = 'Ne căsătorim și ne-am bucura să fii alături de noi.'
+const photoSrc = `${import.meta.env.BASE_URL}noi.jpg`   // file lives in public/noi.jpg
+const waiting = ref(false)
+const center = ref(null)
+const invite = ref(null)
+
+function openInvite() {
+  if (!waiting.value) return
+  waiting.value = false
+  tl.play()
+}
+
 const hero = ref(null)
 const names = ref(null)
 const img = ref(null)
@@ -32,7 +45,7 @@ const envFront = ref(null)
 let tl = null
 
 function preload() {
-  return Promise.all(frames.map(src => new Promise(res => {
+  return Promise.all([...frames, photoSrc].map(src => new Promise(res => {
     const im = new Image()
     im.onload = im.onerror = res
     im.src = src
@@ -85,6 +98,19 @@ const headerFont = Math.max(72, Math.min(vw * 0.14, 90))
   tl.to(amp.value, { opacity: 1, duration: 0.6 }, '-=0.6')
   tl.to({}, { duration: HOLD })
 
+  // 2b. Names + drawing move up, the text and photo appear, then WAIT for a tap
+  tl.to(center.value, { y: -vh * 0.3, scale: 0.72, duration: 1, ease: 'power3.inOut' }, 'invite')
+  tl.set(invite.value, { display: 'flex' }, 'invite')
+  tl.fromTo(invite.value.children,
+    { autoAlpha: 0, y: 14 },
+    { autoAlpha: 1, y: 0, duration: 0.7, stagger: 0.2, ease: 'power2.out' }, 'invite+=0.5')
+  tl.addPause('+=0', () => { waiting.value = true })
+
+  // 2c. After the tap: the invitation fades out, names go back to the middle
+  tl.to(invite.value, { autoAlpha: 0, duration: 0.5, ease: 'power1.in' }, 'opened')
+  tl.to(center.value, { y: 0, scale: 1, duration: 1, ease: 'power3.inOut' }, 'opened')
+  tl.set(invite.value, { display: 'none' })
+
   // 3. The screen turns green, names and drawing turn white
   tl.to(document.body, { backgroundColor: DARK_BG, duration: 1.2, ease: 'power2.inOut' }, 'invert')
   tl.to([names.value, amp.value], { color: LIGHT_TEXT, duration: 1.2, ease: 'power2.inOut' }, 'invert')
@@ -120,13 +146,22 @@ onBeforeUnmount(() => {
 
 <template>
   <header ref="hero" class="hero">
-    <div class="center">
+    <div ref="center" class="center">
       <h1 ref="names" class="names" :style="{ fontFamily: `'${NAMES_FONT}', cursive` }" aria-label="Vlad & Iulia">
         <span class="word"><span v-for="(c, i) in 'Vlad'" :key="'v' + i" class="char">{{ c }}</span></span>
         <span ref="amp" class="amp">&amp;</span>
         <span class="word iulia"><span v-for="(c, i) in 'Iulia'" :key="'i' + i" class="char">{{ c }}</span></span>
       </h1>
       <img ref="img" class="drawing" :src="currentFrame" alt="">
+    </div>
+
+    <!-- Invitation: text + photo, waits for a tap -->
+    <div ref="invite" class="invite" @click="openInvite">
+      <p class="invite-text">{{ INVITE_TEXT }}</p>
+      <button type="button" class="open">
+        <img class="photo" :src="photoSrc" alt="Vlad și Iulia">
+        <span class="open-hint"><span class="pulse">Apasă pentru a deschide</span></span>
+      </button>
     </div>
     <p ref="sub" class="sub">CONFIRMARE DE PREZENȚĂ</p>
   </header>
@@ -216,6 +251,74 @@ onBeforeUnmount(() => {
   letter-spacing: 0.55em;
   margin-top: 1em;
   z-index: 100;
+}
+
+/* ---------- Invitation screen (before the green) ---------- */
+.invite {
+  position: absolute;
+  inset: 34svh 16px 5svh;
+  z-index: 3;
+  display: none;            /* GSAP shows it after the names appear */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.invite-text {
+  margin: 0;
+  max-width: 28ch;
+  font-family: var(--sans);
+  font-weight: 300;
+  font-size: clamp(1.05rem, 2.6vw, 1.3rem);
+  line-height: 1.5;
+  color: var(--clay);
+}
+
+.open {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.photo {
+  display: block;
+  height: 42svh;
+  width: auto;
+  max-width: 78vw;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: 999px 999px 14px 14px;   /* arched top */
+  box-shadow: 0 14px 34px rgba(13, 61, 20, 0.18);
+  transition: transform 0.3s ease;
+}
+
+.open:hover .photo { transform: translateY(-3px); }
+
+.open-hint {
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  padding-left: 0.3em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pulse { display: inline-block; animation: pulse 2s ease-in-out infinite; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }
 
 /* ---------- Letter (the form) ---------- */
