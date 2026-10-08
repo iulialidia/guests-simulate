@@ -11,6 +11,7 @@ const LOOPS = 1              // times the drawing plays (it always ends on frame
 // After frame 10 the riders keep going: up past "Vlad & Iulia" and further into the distance
 const RIDE_SECONDS = 2.5     // how long they keep riding away
 const RIDE_UP = 1.2          // how far up they go (in name-heights; bigger = higher)
+const NAMES_LEAD = 1         // "Vlad & Iulia" starts appearing this many seconds before the riders stop (0 = when they stop)
 const RIDE_SCALE = 0.55      // how small they get at the end (smaller = further away)
 const HOLD = 1.5             // seconds the names sit behind frame 10 before going green
 const NAMES_FONT = 'Brittany' // must match the font-family in your @font-face
@@ -125,8 +126,9 @@ const headerFont = Math.max(72, Math.min(vw * 0.14, 90))
     ease: `steps(${Math.round(RIDE_SECONDS * FPS)})`
   }, 'ride')
 
-  // 2. While they ride away, the names appear letter by letter
-  tl.to(chars, { opacity: 1, y: 0, duration: 0.6, stagger: 0.08, ease: 'power2.out' }, 'ride+=0.5')
+  // 2. Just before the riders stop, the names appear letter by letter
+  tl.to(chars, { opacity: 1, y: 0, duration: 0.6, stagger: 0.08, ease: 'power2.out' },
+    `ride+=${Math.max(0, RIDE_SECONDS - NAMES_LEAD)}`)
   tl.to(amp.value, { opacity: 1, duration: 0.6 }, '-=0.6')
   tl.to({}, { duration: HOLD })
 
