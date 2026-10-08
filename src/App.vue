@@ -27,6 +27,16 @@ const waiting = ref(false)
 const center = ref(null)
 const invite = ref(null)
 
+// Shows/hides the invitation block and glides the names to their new place
+// (instead of jumping when the layout changes)
+function toggleInvite(show) {
+  const before = center.value.getBoundingClientRect().top
+  invite.value.style.display = show ? 'flex' : 'none'
+  if (show) gsap.set(invite.value, { autoAlpha: 1 })
+  const after = center.value.getBoundingClientRect().top
+  gsap.fromTo(center.value, { y: before - after }, { y: 0, duration: 0.9, ease: 'power3.inOut' })
+}
+
 function openInvite() {
   if (!waiting.value) return
   waiting.value = false
@@ -99,17 +109,22 @@ const headerFont = Math.max(72, Math.min(vw * 0.14, 90))
   tl.to({}, { duration: HOLD })
 
   // 2b. Names + drawing move up, the text and photo appear, then WAIT for a tap
-  tl.to(center.value, { y: -vh * 0.3, scale: 0.72, duration: 1, ease: 'power3.inOut' }, 'invite')
-  tl.set(invite.value, { display: 'flex' }, 'invite')
+  //     The invitation sits right under the names (normal page flow).
+  //     GAP controls the space between "Vlad & Iulia" and the text (smaller = closer).
+  const inviteFont = Math.max(56, Math.min(vw * 0.12, 110))
+  const GAP = 0.3
+  invite.value.style.marginTop = `${inviteFont * GAP}px`
+  tl.call(() => toggleInvite(true), null, 'invite')
+  tl.to(names.value, { fontSize: inviteFont, duration: 1, ease: 'power3.inOut' }, 'invite')
   tl.fromTo(invite.value.children,
     { autoAlpha: 0, y: 14 },
     { autoAlpha: 1, y: 0, duration: 0.7, stagger: 0.2, ease: 'power2.out' }, 'invite+=0.5')
   tl.addPause('+=0', () => { waiting.value = true })
 
   // 2c. After the tap: the invitation fades out, names go back to the middle
-  tl.to(invite.value, { autoAlpha: 0, duration: 0.5, ease: 'power1.in' }, 'opened')
-  tl.to(center.value, { y: 0, scale: 1, duration: 1, ease: 'power3.inOut' }, 'opened')
-  tl.set(invite.value, { display: 'none' })
+  tl.to(invite.value, { autoAlpha: 0, duration: 0.5, ease: 'power1.in' })
+  tl.call(() => toggleInvite(false))
+  tl.to({}, { duration: 0.8 })
 
   // 3. The screen turns green, names and drawing turn white
   tl.to(document.body, { backgroundColor: DARK_BG, duration: 1.2, ease: 'power2.inOut' }, 'invert')
@@ -255,13 +270,11 @@ onBeforeUnmount(() => {
 
 /* ---------- Invitation screen (before the green) ---------- */
 .invite {
-  position: absolute;
-  inset: 34svh 16px 5svh;
+  position: relative;
   z-index: 3;
   display: none;            /* GSAP shows it after the names appear */
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 18px;
   text-align: center;
   cursor: pointer;
@@ -292,7 +305,7 @@ onBeforeUnmount(() => {
 
 .photo {
   display: block;
-  height: 42svh;
+  height: clamp(180px, calc(100svh - 320px), 46svh);
   width: auto;
   max-width: 78vw;
   aspect-ratio: 4 / 5;
