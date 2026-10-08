@@ -11,7 +11,7 @@ const LOOPS = 1              // times the drawing plays (it always ends on frame
 // After frame 10 the riders keep going: up past "Vlad & Iulia" and further into the distance
 const RIDE_SECONDS = 2.5     // how long they keep riding away
 const RIDE_UP = 1.2          // how far up they go (in name-heights; bigger = higher)
-const RIDE_SCALE = 0.45      // how small they get at the end (smaller = further away)
+const RIDE_SCALE = 0.55      // how small they get at the end (smaller = further away)
 const HOLD = 1.5             // seconds the names sit behind frame 10 before going green
 const NAMES_FONT = 'Brittany' // must match the font-family in your @font-face
 const DARK_BG = '#3f6146'     // softer forest green (was #0d3d14)
@@ -37,6 +37,7 @@ const invite = ref(null)
 function toggleInvite(show) {
   const before = center.value.getBoundingClientRect().top
   invite.value.style.display = show ? 'flex' : 'none'
+  center.value.style.marginTop = show ? '0.9em' : ''   // room for the riders above the names
   if (show) gsap.set(invite.value, { autoAlpha: 1 })
   const after = center.value.getBoundingClientRect().top
   gsap.fromTo(center.value, { y: before - after }, { y: 0, duration: 0.9, ease: 'power3.inOut' })
@@ -56,7 +57,6 @@ const hero = ref(null)
 const names = ref(null)
 const img = ref(null)
 const amp = ref(null)
-const sub = ref(null)
 const letter = ref(null)
 const envBack = ref(null)
 const envFront = ref(null)
@@ -92,7 +92,7 @@ const headerFont = Math.max(72, Math.min(vw * 0.14, 90))
 
   // Starting state
   gsap.set(chars, { opacity: 0, y: 18 })
-  gsap.set([amp.value, sub.value], { opacity: 0 })
+  gsap.set(amp.value, { opacity: 0 })
   gsap.set(names.value, { visibility: 'visible' })
   gsap.set(img.value, { filter: 'brightness(1) invert(0)' })
   gsap.set(envelope, { yPercent: 140 })   // parked below the screen, still hidden
@@ -114,10 +114,12 @@ const headerFont = Math.max(72, Math.min(vw * 0.14, 90))
 
   // 1b. They keep riding away: up past the names and smaller, in the same
   //     hand-drawn rhythm as the frames (stepped, not gliding)
-  const fontPx = parseFloat(getComputedStyle(center.value).fontSize)
-  gsap.set(img.value, { transformOrigin: '51% 58%' })   // the riders' spot in frame 10
+  //     (starts on the beat of the last frame, so there is no pause in the middle)
+  // GSAP owns the centring (-50%/-50%) so the ride can add to it cleanly
+  gsap.set(img.value, { x: 0, y: 0, xPercent: -50, yPercent: -50, transformOrigin: '51% 58%' })
+  tl.addLabel('ride', `-=${1 / FPS}`)
   tl.to(img.value, {
-    y: -RIDE_UP * fontPx,
+    yPercent: -50 - RIDE_UP / 3.17 * 100,   // 3.17 = drawing height in name-heights, so it scales with the names
     scale: RIDE_SCALE,
     duration: RIDE_SECONDS,
     ease: `steps(${Math.round(RIDE_SECONDS * FPS)})`
@@ -131,8 +133,9 @@ const headerFont = Math.max(72, Math.min(vw * 0.14, 90))
   // 2b. Names + drawing move up, the text and photo appear, then WAIT for a tap
   //     The invitation sits right under the names (normal page flow).
   //     Sizes are CSS values, so they keep adapting if the window is resized/rotated.
-  const INVITE_FONT = 'clamp(56px, 11vw, 84px)'
-  const inviteFont = Math.max(56, Math.min(vw * 0.11, 84))
+  //     The name size depends on width AND height (see --inv-f in .hero), so nothing gets cut.
+  const INVITE_FONT = 'var(--inv-f)'
+  const inviteFont = Math.max(46, Math.min(vw * 0.11, vh * 0.08, 84))
   tl.call(() => toggleInvite(true), null, 'invite')
   tl.to(center.value, { fontSize: inviteFont, duration: 1, ease: 'power3.inOut' }, 'invite')
   tl.set(center.value, { fontSize: INVITE_FONT }, 'invite+=1')
@@ -162,7 +165,6 @@ const headerFont = Math.max(72, Math.min(vw * 0.14, 90))
   // after the move, switch to CSS sizes so the header adapts to any screen
   tl.set(hero.value, { height: 'max(30svh, 200px)' }, 'up+=1.1')
   tl.set(center.value, { fontSize: 'clamp(72px, 14vw, 90px)' }, 'up+=1.1')
-  tl.to(sub.value, { opacity: 1, duration: 0.6 }, 'up+=0.7')
 
   // 5. The envelope rises with the form tucked inside
   tl.set(envelope, { visibility: 'visible' }, 'envelope')   // only now, after the green
@@ -204,7 +206,6 @@ onBeforeUnmount(() => {
         <span class="open-hint"><span class="pulse">Apasă pentru a deschide</span></span>
       </button>
     </div>
-    <p ref="sub" class="sub">15 · 05 · 2027</p>
   </header>
 
   <main class="letter-wrap">
@@ -235,6 +236,8 @@ onBeforeUnmount(() => {
   justify-content: center;
   gap: 10px;
   padding: 0 16px;
+  /* size of "Vlad & Iulia" on the invitation screen: fits both narrow and short screens */
+  --inv-f: clamp(46px, min(11vw, 8svh), 84px);
 }
 
 .center {
@@ -278,7 +281,7 @@ onBeforeUnmount(() => {
   z-index: 2;
   left: 50%;
   top: 50%;
-  translate: -50% -50%;
+  transform: translate(-50%, -50%);
   width: 4.6em;             /* always proportional to the names */
   height: auto;
   max-width: 90vw;
@@ -337,7 +340,7 @@ onBeforeUnmount(() => {
 
 .photo {
   display: block;
-  height: clamp(180px, calc(100svh - 320px), 46svh);
+  height: clamp(150px, calc(100svh - 2.6 * var(--inv-f) - 240px), 46svh);
   width: auto;
   max-width: 78vw;
   aspect-ratio: 4 / 5;
@@ -370,7 +373,7 @@ onBeforeUnmount(() => {
 .letter-wrap {
   display: flex;
   justify-content: center;
-  padding: 0 16px 80px;
+  padding: 28px 16px 80px;   /* top: room for the tail of the "I" in Iulia */
 }
 
 .letter {
