@@ -34,6 +34,12 @@ const EVENTS = [
   }
 ]
 
+// Phone numbers shown under the RSVP lead-in (tap = call)
+const PHONES = [
+  { name: 'Iulia', display: '0752 206 451', tel: '+40752206451' },
+  { name: 'Vlad', display: '0736 614 605', tel: '+40736614605' }
+]
+
 // Godparents: the section appears on the invitation only once this is filled in.
 const NASI = ''                  // ex: 'Ana & Mihai Popescu'
 
@@ -131,7 +137,17 @@ onBeforeUnmount(() => io?.disconnect())
         <path d="M4 18 C40 18 60 6 90 12 C110 16 112 28 100 28 C88 28 92 10 120 10 C148 10 152 28 140 28 C128 28 130 16 150 12 C180 6 200 18 236 18" />
       </svg>
       <p class="inv-eyebrow">Răspunde invitației</p>
-      <p class="inv-lead">Te rugăm să ne anunți până pe <strong>15 aprilie 2027</strong>.</p>
+      <p class="inv-lead">
+        Te rugăm să ne anunți până pe <strong>15 aprilie 2027</strong>,
+        completând formularul de mai jos sau telefonic:
+      </p>
+      <div class="phones">
+        <a v-for="ph in PHONES" :key="ph.tel" class="phone" :href="'tel:' + ph.tel">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h3.5l1.7 4.3-2.2 1.4a11 11 0 0 0 6.3 6.3l1.4-2.2L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5A16.5 16.5 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4z"/></svg>
+          <span class="ph-num">{{ ph.display }}</span>
+          <span class="ph-name">{{ ph.name }}</span>
+        </a>
+      </div>
     </section>
   </div>
 </template>
@@ -281,6 +297,33 @@ onBeforeUnmount(() => io?.disconnect())
 
 .inv-lead { margin: 0; font-size: 1rem; line-height: 1.5; }
 .inv-lead strong { color: var(--clay); font-weight: 600; }
+
+.phones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--sage);
+  border-radius: 999px;
+  color: var(--sage);
+  font-size: 0.95rem;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.phone:hover { background: var(--sage); color: #fbf9f5; }
+.phone svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; }
+.ph-num { font-weight: 600; letter-spacing: 0.02em; }
+.ph-name { opacity: 0.8; }
 
 /* ---- Scroll reveal ---- */
 .reveal { opacity: 0; transform: translateY(14px); transition: opacity 0.7s ease, transform 0.7s ease; }
