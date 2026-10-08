@@ -21,7 +21,7 @@ const EVENTS = [
     icon: 'glass',
     time: null,
     place: 'Conacul Archia',
-    detail: 'Salon Garden · Archia, Hunedoara',
+    detail: 'Terasa, Salon Garden · Archia, Hunedoara',
     mapUrl: MAP_ARCHIA
   },
   {
