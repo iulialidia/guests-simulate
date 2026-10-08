@@ -9,7 +9,7 @@ const FRAME_COUNT = 10
 const FPS = 4           // drawing speed (8–12 feels hand-drawn)
 const LOOPS = 1              // times the drawing plays (it always ends on frame 10)
 // After frame 10 the riders keep going: up past "Vlad & Iulia" and further into the distance
-const RIDE_SECONDS = 3       // how long they keep riding away
+const RIDE_SECONDS = 3.25    // how long they keep riding away
 const RIDE_UP = 1.2          // how far up they go (in name-heights; bigger = higher)
 const NAMES_LEAD = 1         // "Vlad & Iulia" starts appearing this many seconds before the riders stop (0 = when they stop)
 const RIDE_SCALE = 0.55      // how small they get at the end (smaller = further away)
@@ -130,7 +130,9 @@ const headerFont = Math.max(72, Math.min(vw * 0.14, 90))
     duration: RIDE_SECONDS,
     ease: `steps(${Math.round(RIDE_SECONDS * FPS)})`
   }, 'ride')
-  // ...and the drawings keep playing on the same beat, ending on frame 10
+  // ...and the drawings keep playing on the same beat, ending on drawing 7:
+  //    the two of them closest together, turned towards each other.
+  //    (3.25 s = 13 beats, which is exactly what lands on that drawing)
   const rideSteps = Math.round(RIDE_SECONDS * FPS)
   const ride = { k: 0 }
   tl.to(ride, {
@@ -141,7 +143,7 @@ const headerFont = Math.max(72, Math.min(vw * 0.14, 90))
       const i = (Math.round(ride.k) + RIDE_FRAMES.length - 1) % RIDE_FRAMES.length   // starts on frame 10
       currentFrame.value = RIDE_FRAMES[i]
     },
-    onComplete: () => { currentFrame.value = frames[FRAME_COUNT - 1] }   // always stop on frame 10
+    onComplete: () => { currentFrame.value = RIDE_FRAMES[0] }   // always stop on drawing 7 (side by side)
   }, 'ride')
 
   // 2. Just before the riders stop, the names appear letter by letter
