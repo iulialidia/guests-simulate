@@ -110,12 +110,12 @@ const headerFont = Math.max(72, Math.min(vw * 0.14, 90))
 
   // 2b. Names + drawing move up, the text and photo appear, then WAIT for a tap
   //     The invitation sits right under the names (normal page flow).
-  //     GAP controls the space between "Vlad & Iulia" and the text (smaller = closer).
-  const inviteFont = Math.max(56, Math.min(vw * 0.12, 110))
-  const GAP = 0.3
-  invite.value.style.marginTop = `${inviteFont * GAP}px`
+  //     Sizes are CSS values, so they keep adapting if the window is resized/rotated.
+  const INVITE_FONT = 'clamp(56px, 11vw, 84px)'
+  const inviteFont = Math.max(56, Math.min(vw * 0.11, 84))
   tl.call(() => toggleInvite(true), null, 'invite')
-  tl.to(names.value, { fontSize: inviteFont, duration: 1, ease: 'power3.inOut' }, 'invite')
+  tl.to(center.value, { fontSize: inviteFont, duration: 1, ease: 'power3.inOut' }, 'invite')
+  tl.set(center.value, { fontSize: INVITE_FONT }, 'invite+=1')
   tl.fromTo(invite.value.children,
     { autoAlpha: 0, y: 14 },
     { autoAlpha: 1, y: 0, duration: 0.7, stagger: 0.2, ease: 'power2.out' }, 'invite+=0.5')
@@ -135,7 +135,10 @@ const headerFont = Math.max(72, Math.min(vw * 0.14, 90))
   // 4. Frame 10 fades away, names move up and get smaller, subtitle appears
   tl.to(img.value, { autoAlpha: 0, duration: 0.6, ease: 'power1.out' }, 'up')
   tl.to(hero.value, { height: headerHeight, duration: 1.1, ease: 'power3.inOut' }, 'up')
-  tl.to(names.value, { fontSize: headerFont, duration: 1.1, ease: 'power3.inOut' }, 'up')
+  tl.to(center.value, { fontSize: headerFont, duration: 1.1, ease: 'power3.inOut' }, 'up')
+  // after the move, switch to CSS sizes so the header adapts to any screen
+  tl.set(hero.value, { height: 'max(30svh, 200px)' }, 'up+=1.1')
+  tl.set(center.value, { fontSize: 'clamp(72px, 14vw, 90px)' }, 'up+=1.1')
   tl.to(sub.value, { opacity: 1, duration: 0.6 }, 'up+=0.7')
 
   // 5. The envelope rises with the form tucked inside
@@ -212,6 +215,7 @@ onBeforeUnmount(() => {
 
 .center {
   position: relative;
+  font-size: clamp(5rem, 15vw, 10rem);   /* size of "Vlad & Iulia" (the drawing follows it) */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -225,7 +229,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   font-weight: 400;
-  font-size: clamp(5rem, 15vw, 10rem);
+  font-size: 1em;
   line-height: 1;
   color: var(--clay);
   white-space: nowrap;
@@ -251,20 +255,23 @@ onBeforeUnmount(() => {
   left: 50%;
   top: 50%;
   translate: -50% -50%;
-  width: auto;
+  width: 4.6em;             /* always proportional to the names */
   height: auto;
   max-width: 90vw;
-  max-height: 110svh;
   pointer-events: none;
 }
 
 .sub {
   margin: 0.4em 0 0;
   /* font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; */
-  font-size: 0.85rem;
+  font-size: clamp(0.7rem, 2.6vw, 0.85rem);
   color: rgba(248, 234, 216, 0.8);
-  letter-spacing: 0.55em;
-  margin-top: 1em;
+  letter-spacing: 0.5em;
+  padding-left: 0.5em;      /* keeps the spaced-out text centred */
+  white-space: nowrap;
+  text-align: center;
+  margin-top: 3.2em;        /* room for the tail of the "I" in Iulia */
+  opacity: 0;               /* hidden until the intro shows it (no flash on load) */
   z-index: 100;
 }
 
@@ -273,6 +280,7 @@ onBeforeUnmount(() => {
   position: relative;
   z-index: 3;
   display: none;            /* GSAP shows it after the names appear */
+  margin-top: clamp(26px, 6vw, 36px);   /* space between "Vlad & Iulia" and the text (leaves room for the tail of the "I") */
   flex-direction: column;
   align-items: center;
   gap: 18px;
