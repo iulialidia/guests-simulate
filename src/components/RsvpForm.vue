@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref, computed } from 'vue'
+import { reactive, ref, computed, watch } from 'vue'
 import gsap from 'gsap'
 import GuestCard from './GuestCard.vue'
 
@@ -47,6 +47,9 @@ const form = reactive(defaultForm())
 const sending = ref(false)
 const status = ref(null)
 const submitted = ref(null)   // copy of the answers, shown on the thank-you screen
+// Let the rest of the invitation know when the thank-you screen is showing
+// (the 'Răspunde invitației' block above the form hides itself then)
+watch(submitted, (v) => document.dispatchEvent(new CustomEvent('rsvp-answered', { detail: !!v })))
 const root = ref(null)
 
 const addGuest = () => form.guests.push(newGuest())
