@@ -43,7 +43,7 @@ const invite = ref(null)
 function toggleInvite(show) {
   const before = center.value.getBoundingClientRect().top
   invite.value.style.display = show ? 'flex' : 'none'
-  center.value.style.marginTop = show ? '0.9em' : ''   // room for the riders above the names
+  center.value.style.marginTop = '0.9em'   // room for the riders above the names (they stay there to the end)
   if (show) gsap.set(invite.value, { autoAlpha: 1 })
   const after = center.value.getBoundingClientRect().top
   gsap.fromTo(center.value, { y: before - after }, { y: 0, duration: 0.9, ease: 'power3.inOut' })
@@ -93,7 +93,7 @@ onMounted(async () => {
   const envelope = [envBack.value, envFront.value]
 
   // Final sizes once the names become the header
-  const headerHeight = Math.max(vh * 0.3, 200)
+  const headerHeight = Math.max(vh * 0.34, 240)
 const headerFont = Math.max(72, Math.min(vw * 0.14, 90))
 
   // Starting state
@@ -181,11 +181,11 @@ const headerFont = Math.max(72, Math.min(vw * 0.14, 90))
   tl.to({}, { duration: 0.3 })
 
   // 4. Frame 10 fades away, names move up and get smaller, subtitle appears
-  tl.to(img.value, { autoAlpha: 0, duration: 0.6, ease: 'power1.out' }, 'up')
+  // (the riders stay above the names, now white on green)
   tl.to(hero.value, { height: headerHeight, duration: 1.1, ease: 'power3.inOut' }, 'up')
   tl.to(center.value, { fontSize: headerFont, duration: 1.1, ease: 'power3.inOut' }, 'up')
   // after the move, switch to CSS sizes so the header adapts to any screen
-  tl.set(hero.value, { height: 'max(30svh, 200px)' }, 'up+=1.1')
+  tl.set(hero.value, { height: 'max(34svh, 240px)' }, 'up+=1.1')
   tl.set(center.value, { fontSize: 'clamp(72px, 14vw, 90px)' }, 'up+=1.1')
 
   // 5. The envelope rises with the form tucked inside
