@@ -183,6 +183,7 @@ const headerFont = Math.max(72, Math.min(vw * 0.14, 90))
   // 4. Frame 10 fades away, names move up and get smaller, subtitle appears
   // (the riders stay above the names, now white on green)
   tl.to(hero.value, { height: headerHeight, duration: 1.1, ease: 'power3.inOut' }, 'up')
+  tl.to(document.body, { '--cream-a': 1, duration: 1.4, ease: 'power2.inOut' }, 'up')   // green melts into cream below
   tl.to(center.value, { fontSize: headerFont, duration: 1.1, ease: 'power3.inOut' }, 'up')
   // after the move, switch to CSS sizes so the header adapts to any screen
   tl.set(hero.value, { height: 'max(34svh, 240px)' }, 'up+=1.1')
@@ -403,10 +404,10 @@ onBeforeUnmount(() => {
   z-index: 2;
   width: 100%;
   max-width: 540px;
-  background: #F7F2E8;
+  background: #fbf9f5;
   padding: 32px 30px 36px;
-  border-radius: 4px;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
+  border-radius: 14px;
+  box-shadow: 0 18px 40px rgba(20, 40, 20, 0.12);
   visibility: hidden;
   opacity: 0;
 }
