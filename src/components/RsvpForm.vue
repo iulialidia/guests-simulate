@@ -510,7 +510,8 @@ form { margin: 0; }
   color: var(--sage);
   font-family: var(--sans);
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 400;
+  letter-spacing: 0.01em;
   text-decoration: none;
   transition: background 0.15s ease, color 0.15s ease;
 }
