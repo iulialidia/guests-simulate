@@ -11,7 +11,7 @@ const WEDDING_DATE = new Date(2027, 4, 15) // 15 May 2027 (months count from 0)
 const WEDDING_DATE_TEXT = '15.05.2027'
 // Save-the-date video on YouTube (Unlisted). Paste the link between the quotes;
 // while it's empty, the button simply doesn't show.
-const SAVE_THE_DATE_URL = ''
+const SAVE_THE_DATE_URL = 'https://youtu.be/2v6mp8b5dPk'
 const CALENDAR_LINK =
   'https://calendar.google.com/calendar/render?action=TEMPLATE' +
   '&text=' + encodeURIComponent('Nunta Vlad & Iulia') +
