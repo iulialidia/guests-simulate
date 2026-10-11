@@ -111,9 +111,38 @@ function onViewEnter(el, done) {
 }
 
 // ---------- Submit ----------
+// Same rule as the Google Sheets script: a name needs at least a few real letters
+const letters = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '')
+const guestLabel = (idx) => (idx === 0 ? 'Invitatul principal' : `Însoțitorul ${idx + 1}`)
+
+// Checks everything BEFORE sending, so the guest gets a clear message right away
+function checkForm() {
+  const problems = []
+  if (!form.prezenta) problems.push('alegi dacă vei fi alături de noi')
+  const list = form.prezenta === 'Da' ? form.guests : [form.guests[0]]
+  list.forEach((g, idx) => {
+    if (letters(g.nume).length < (idx === 0 ? 3 : 2)) problems.push(`scrii numele și prenumele pentru ${guestLabel(idx).toLowerCase()}`)
+    if (form.prezenta === 'Da' && !g.meniu) problems.push(`alegi meniul pentru ${guestLabel(idx).toLowerCase()}`)
+  })
+  if (form.prezenta === 'Da' && form.guests.length > 8) problems.push('confirmi cel mult 8 persoane într-un singur răspuns')
+  return problems
+}
+
+const PHONE_HELP = 'Dacă problema continuă, ne poți anunța telefonic: 0752 206 451 (Iulia) sau 0736 614 605 (Vlad).'
+const slow = ref(false)   // true when the server takes longer than a couple of seconds
+
 async function submitForm() {
-  sending.value = true
   status.value = null
+
+  const problems = checkForm()
+  if (problems.length) {
+    status.value = { type: 'error', message: 'Te rugăm să ' + problems.join('; ') + '.' }
+    return
+  }
+
+  sending.value = true
+  slow.value = false
+  const slowTimer = setTimeout(() => { slow.value = true }, 2500)
 
   const fd = new FormData()
   fd.append('prezenta', form.prezenta)
@@ -137,9 +166,18 @@ async function submitForm() {
 
   fd.append('mesaj', form.mesaj)
 
+  // Give up waiting after 30 s (very slow or broken connection)
+  const ctrl = new AbortController()
+  const timeout = setTimeout(() => ctrl.abort(), 30000)
+
   try {
-    const res = await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: fd })
-    const data = await res.json()
+    const res = await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: fd, signal: ctrl.signal })
+    let data
+    try {
+      data = await res.json()
+    } catch (e) {
+      throw new Error('bad-response')
+    }
 
     if (data.result === 'success') {
       // Keep a copy of what was sent, then show the thank-you screen
@@ -153,15 +191,31 @@ async function submitForm() {
       }
       Object.assign(form, defaultForm())
     } else {
-      // Show the exact reason the sheet script gave (e.g. what's wrong with the name)
-      status.value = { type: 'error', message: data.message || 'A apărut o eroare. Te rugăm să încerci din nou!' }
+      // The sheet script explains what's wrong (closed RSVP, busy server, name, menus …)
+      status.value = {
+        type: 'error',
+        message: (data.message || 'Răspunsul nu a putut fi salvat. Te rugăm să încerci din nou.') +
+          (data.code === 'SERVER' || data.code === 'BUSY' ? ' ' + PHONE_HELP : '')
+      }
       console.warn('Răspuns server:', data)
     }
   } catch (err) {
-    status.value = { type: 'error', message: 'A apărut o eroare. Te rugăm să încerci din nou!' }
+    // No (readable) answer from the server: slow/lost connection or a timeout.
+    // Sending again is safe — the same name updates the same answer, it is never counted twice.
+    status.value = {
+      type: 'error',
+      message: (err.name === 'AbortError'
+        ? 'Serverul a răspuns prea greu. '
+        : 'Nu am putut confirma trimiterea (conexiune slabă sau întreruptă). ') +
+        'Este posibil ca răspunsul tău să fi fost totuși salvat. Apasă din nou pe „Trimite Confirmarea” — nu se va dubla, doar se actualizează. ' +
+        PHONE_HELP
+    }
     console.error('Eroare:', err)
   } finally {
+    clearTimeout(timeout)
+    clearTimeout(slowTimer)
     sending.value = false
+    slow.value = false
   }
 }
 
@@ -270,8 +324,9 @@ function newResponse() {
         <p class="req-note"><span class="req">*</span> câmp obligatoriu</p>
 
         <button type="submit" class="submit" :disabled="sending">
-          {{ sending ? 'Se trimite...' : 'Trimite Confirmarea' }}
+          {{ sending ? 'Se trimite răspunsul…' : 'Trimite Confirmarea' }}
         </button>
+        <p v-if="sending && slow" class="slow-note">Salvăm răspunsul tău… durează de obicei câteva secunde. Te rugăm să nu închizi pagina.</p>
 
         <Transition :css="false" @enter="onStatusEnter">
           <div v-if="status" class="status" :class="status.type">{{ status.message }}</div>
@@ -339,6 +394,14 @@ form { margin: 0; }
   font-size: 0.95rem;
   padding: 14px;
   border-radius: 3px;
+}
+
+.slow-note {
+  margin: 12px 0 0;
+  text-align: center;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  color: var(--muted);
 }
 
 .status.success { background: #eef1e9; color: #4c5940; }
