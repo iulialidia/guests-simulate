@@ -136,7 +136,7 @@ function checkForm() {
     const words = String(g.nume || '').trim().split(/\s+/).filter(w => letters(w).length >= 2)
     const nameId = form.prezenta === 'Da' ? 'nume-' + g.id : 'nume-nu'
     if (!letters(g.nume)) { g.errNume = 'Te rugăm să scrii numele și prenumele.'; mark(nameId) }
-    else if (words.length < 2) { g.errNume = 'Te rugăm să scrii atât numele, cât și prenumele (ex: Ana Popescu).'; mark(nameId) }
+    else if (words.length < 2) { g.errNume = 'Te rugăm să scrii atât numele, cât și prenumele.'; mark(nameId) }
     if (form.prezenta === 'Da' && !g.meniu) { g.errMeniu = 'Te rugăm să alegi meniul.'; mark('meniu-' + g.id) }
   })
   return first
