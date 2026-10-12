@@ -34,7 +34,7 @@ const daysLabel = computed(() => {
 })
 
 let guestSeq = 0
-const newGuest = () => ({ id: guestSeq++, nume: '', meniu: '' })
+const newGuest = () => ({ id: guestSeq++, nume: '', meniu: '', errNume: '', errMeniu: '' })
 
 const defaultForm = () => ({
   prezenta: '',
@@ -51,8 +51,11 @@ const submitted = ref(null)   // copy of the answers, shown on the thank-you scr
 // (the 'Răspunde invitației' block above the form hides itself then)
 watch(submitted, (v) => document.dispatchEvent(new CustomEvent('rsvp-answered', { detail: !!v })))
 const root = ref(null)
+const errPrezenta = ref('')
+watch(() => form.prezenta, () => { errPrezenta.value = ''; status.value = null })
 
-const addGuest = () => form.guests.push(newGuest())
+const MAX_GUESTS = 8   // same limit as the Google Sheets script
+const addGuest = () => { if (form.guests.length < MAX_GUESTS) form.guests.push(newGuest()) }
 const removeGuest = (idx) => form.guests.splice(idx, 1)
 
 // ---------- Animations ----------
@@ -113,19 +116,36 @@ function onViewEnter(el, done) {
 // ---------- Submit ----------
 // Same rule as the Google Sheets script: a name needs at least a few real letters
 const letters = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '')
-const guestLabel = (idx) => (idx === 0 ? 'Invitatul principal' : `Însoțitorul ${idx + 1}`)
 
-// Checks everything BEFORE sending, so the guest gets a clear message right away
+// Checks everything BEFORE sending. Each problem gets its own short message,
+// shown in red right under the field it belongs to. Returns the first field to fix.
 function checkForm() {
-  const problems = []
-  if (!form.prezenta) problems.push('alegi dacă vei fi alături de noi')
+  let first = null
+  const mark = (id) => { if (!first) first = id }
+  errPrezenta.value = ''
+  form.guests.forEach(g => { g.errNume = ''; g.errMeniu = '' })
+
+  if (!form.prezenta) {
+    errPrezenta.value = 'Te rugăm să alegi dacă vei fi alături de noi.'
+    mark('prezenta')
+    return first
+  }
   const list = form.prezenta === 'Da' ? form.guests : [form.guests[0]]
   list.forEach((g, idx) => {
-    if (letters(g.nume).length < (idx === 0 ? 3 : 2)) problems.push(`scrii numele și prenumele pentru ${guestLabel(idx).toLowerCase()}`)
-    if (form.prezenta === 'Da' && !g.meniu) problems.push(`alegi meniul pentru ${guestLabel(idx).toLowerCase()}`)
+    const n = letters(g.nume).length
+    const nameId = form.prezenta === 'Da' ? 'nume-' + g.id : 'nume-nu'
+    if (n === 0) { g.errNume = 'Te rugăm să scrii numele și prenumele.'; mark(nameId) }
+    else if (n < (idx === 0 ? 3 : 2)) { g.errNume = 'Numele pare prea scurt — scrie numele și prenumele.'; mark(nameId) }
+    if (form.prezenta === 'Da' && !g.meniu) { g.errMeniu = 'Te rugăm să alegi meniul.'; mark('meniu-' + g.id) }
   })
-  if (form.prezenta === 'Da' && form.guests.length > 8) problems.push('confirmi cel mult 8 persoane într-un singur răspuns')
-  return problems
+  return first
+}
+
+function goTo(id) {
+  const el = document.getElementById(id)
+  if (!el) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  setTimeout(() => el.focus({ preventScroll: true }), 350)
 }
 
 const PHONE_HELP = 'Dacă problema continuă, ne poți anunța telefonic: 0752 206 451 (Iulia) sau 0736 614 605 (Vlad).'
@@ -134,9 +154,9 @@ const slow = ref(false)   // true when the server takes longer than a couple of 
 async function submitForm() {
   status.value = null
 
-  const problems = checkForm()
-  if (problems.length) {
-    status.value = { type: 'error', message: 'Te rugăm să ' + problems.join('; ') + '.' }
+  const firstBad = checkForm()
+  if (firstBad) {
+    goTo(firstBad)
     return
   }
 
@@ -195,21 +215,24 @@ async function submitForm() {
       status.value = {
         type: 'error',
         message: (data.message || 'Răspunsul nu a putut fi salvat. Te rugăm să încerci din nou.') +
-          (data.code === 'SERVER' || data.code === 'BUSY' ? ' ' + PHONE_HELP : '')
+          (data.code === 'SERVER' ? ' ' + PHONE_HELP : '')
       }
       console.warn('Răspuns server:', data)
     }
   } catch (err) {
-    // No (readable) answer from the server: slow/lost connection or a timeout.
-    // Sending again is safe — the same name updates the same answer, it is never counted twice.
-    status.value = {
-      type: 'error',
-      message: (err.name === 'AbortError'
-        ? 'Serverul a răspuns prea greu. '
-        : 'Nu am putut confirma trimiterea (conexiune slabă sau întreruptă). ') +
-        'Este posibil ca răspunsul tău să fi fost totuși salvat. Apasă din nou pe „Trimite Confirmarea” — nu se va dubla, doar se actualizează. ' +
-        PHONE_HELP
+    // No (readable) answer from the server. Sending again is safe:
+    // the same name updates the same answer, it is never counted twice.
+    let message
+    if (err.name === 'AbortError') {
+      message = 'Serverul răspunde greu acum. Te rugăm să încerci din nou peste câteva secunde.'
+    } else if (err.message === 'bad-response') {
+      message = 'Nu am primit confirmarea salvării. Te rugăm să apeși din nou pe „Trimite Confirmarea”.'
+    } else if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      message = 'Nu ești conectat la internet. Verifică conexiunea și încearcă din nou.'
+    } else {
+      message = 'Nu s-a putut trimite răspunsul — verifică conexiunea la internet și încearcă din nou.'
     }
+    status.value = { type: 'error', message: message + ' Răspunsul nu se va dubla.' }
     console.error('Eroare:', err)
   } finally {
     clearTimeout(timeout)
@@ -278,19 +301,22 @@ function newResponse() {
       </section>
 
       <!-- ---------- Form ---------- -->
-      <form v-else key="form" @submit.prevent="submitForm">
+      <form v-else key="form" novalidate @submit.prevent="submitForm">
         <div class="field">
           <label for="prezenta">Vei fi alături de noi? <span class="req">*</span></label>
-          <select id="prezenta" v-model="form.prezenta" required>
+          <select id="prezenta" v-model="form.prezenta" required :class="{ invalid: errPrezenta }" :aria-invalid="!!errPrezenta">
             <option value="" disabled>Alege un răspuns</option>
             <option value="Da">Da, cu drag!</option>
             <option value="Nu">Din păcate, nu pot ajunge</option>
           </select>
+          <p v-if="errPrezenta" class="field-error">{{ errPrezenta }}</p>
         </div>
 
         <div v-if="form.prezenta === 'Nu'" class="field">
           <label for="nume-nu">Nume &amp; Prenume <span class="req">*</span></label>
-          <input type="text" id="nume-nu" v-model="form.guests[0].nume" placeholder="Nume Prenume" required>
+          <input type="text" id="nume-nu" v-model="form.guests[0].nume" placeholder="Nume Prenume" required
+            :class="{ invalid: form.guests[0].errNume }" :aria-invalid="!!form.guests[0].errNume" @input="form.guests[0].errNume = ''">
+          <p v-if="form.guests[0].errNume" class="field-error">{{ form.guests[0].errNume }}</p>
         </div>
 
         <template v-if="form.prezenta === 'Da'">
@@ -307,7 +333,8 @@ function newResponse() {
               />
             </TransitionGroup>
 
-            <button type="button" class="add-guest" @click="addGuest">+ Adaugă un însoțitor</button>
+            <button v-if="form.guests.length < MAX_GUESTS" type="button" class="add-guest" @click="addGuest">+ Adaugă un însoțitor</button>
+            <p v-else class="max-note">Poți confirma cel mult {{ MAX_GUESTS }} persoane într-un răspuns. Pentru mai multe, scrie-ne un mesaj mai jos.</p>
           </div>
 
           <div class="field">
@@ -402,6 +429,22 @@ form { margin: 0; }
   font-family: var(--sans);
   font-size: 0.85rem;
   color: var(--muted);
+}
+
+.field-error {
+  margin: 6px 0 0;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  color: var(--error);
+}
+.invalid { border-color: var(--error) !important; box-shadow: 0 0 0 1px var(--error); }
+
+.max-note {
+  margin: 4px 0 0;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
 }
 
 .status.success { background: #eef1e9; color: #4c5940; }
